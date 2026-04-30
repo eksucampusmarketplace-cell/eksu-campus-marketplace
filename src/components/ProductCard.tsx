@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MapPin } from "lucide-react";
+import { MapPin, Sparkles } from "lucide-react";
 
 interface ProductCardProps {
   product: {
@@ -11,20 +11,31 @@ interface ProductCardProps {
     location?: string | null;
     createdAt?: string;
     created_at?: string;
+    is_promoted?: boolean;
   };
+  isPromoted?: boolean;
 }
 
-export default function ProductCard({ product }: ProductCardProps) {
+export default function ProductCard({ product, isPromoted }: ProductCardProps) {
   const image = product.image || (product.images && product.images[0]) || "https://via.placeholder.com/400";
   const location = product.location || "EKSU Campus";
   const timeAgo = product.createdAt || (product.created_at ? formatTimeAgo(product.created_at) : "");
+  const promoted = isPromoted || product.is_promoted || false;
 
   return (
     <Link
       href={`/marketplace/${product.id}`}
-      className="group bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow"
+      className={`group bg-white rounded-xl border overflow-hidden hover:shadow-lg transition-shadow ${
+        promoted ? "border-amber-300 ring-1 ring-amber-200" : "border-gray-200"
+      }`}
     >
-      <div className="aspect-square overflow-hidden bg-gray-100">
+      <div className="relative aspect-square overflow-hidden bg-gray-100">
+        {promoted && (
+          <div className="absolute top-2 left-2 z-10 flex items-center gap-1 px-2 py-0.5 bg-amber-500 text-white text-xs font-medium rounded-full">
+            <Sparkles className="w-3 h-3" />
+            Featured
+          </div>
+        )}
         <img
           src={image}
           alt={product.title}
