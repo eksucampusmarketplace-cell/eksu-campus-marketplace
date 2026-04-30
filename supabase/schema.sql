@@ -525,3 +525,36 @@ create policy "Users can update own reviews"
 
 create policy "Users can delete own reviews"
   on public.reviews for delete using (auth.uid() = reviewer_id);
+
+-- ============================================
+-- ORDERS
+-- ============================================
+create table public.orders (
+  id uuid default uuid_generate_v4() primary key,
+  buyer_id uuid references public.profiles(id) on delete cascade not null,
+  seller_id uuid references public.profiles(id) on delete cascade not null,
+  listing_id uuid references public.listings(id) on delete set null,
+  amount numeric not null,
+  status text default 'pending' check (status in ('pending', 'accepted', 'in_progress', 'completed', 'cancelled', 'disputed')),
+  payment_method text default 'wallet' check (payment_method in ('wallet', 'cash', 'transfer')),
+  delivery_method text default 'meetup' check (delivery_method in ('meetup', 'delivery', 'pickup')),
+  delivery_address text,
+  notes text,
+  reference text unique,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+alter table public.orders enable row level security;
+
+create policy "Buyers can view own orders"
+  on public.orders for select using (auth.uid() = buyer_id);
+
+create policy "Sellers can view orders for their listings"
+  on public.orders for select using (auth.uid() = seller_id);
+
+create policy "Buyers can create orders"
+  on public.orders for insert with check (auth.uid() = buyer_id);
+
+create policy "Sellers can update order status"
+  on public.orders for update using (auth.uid() = seller_id or auth.uid() = buyer_id);

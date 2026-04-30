@@ -204,3 +204,19 @@ export interface Review {
   comment: string | null;
   created_at: string;
 }
+
+export interface Order {
+  id: string;
+  buyer_id: string;
+  seller_id: string;
+  listing_id: string | null;
+  amount: number;
+  status: "pending" | "accepted" | "in_progress" | "completed" | "cancelled" | "disputed";
+  payment_method: "wallet" | "cash" | "transfer";
+  delivery_method: "meetup" | "delivery" | "pickup";
+  delivery_address: string | null;
+  notes: string | null;
+  reference: string;
+  created_at: string;
+  updated_at: string;
+}
