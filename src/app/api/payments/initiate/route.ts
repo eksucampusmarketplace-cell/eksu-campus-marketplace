@@ -38,6 +38,7 @@ export async function POST(request: Request) {
       currency: "NGN",
       status: "pending",
       payment_reference: reference,
+      payment_channel: "bank_transfer",
     });
 
   if (insertError) {
@@ -62,7 +63,7 @@ export async function POST(request: Request) {
       amount,
       transaction_ref: reference,
       customer_name: profile?.full_name || undefined,
-      callback_url: `${request.headers.get("origin") || ""}/wallet?payment=success`,
+      callback_url: `${request.headers.get("origin") || ""}/wallet?payment=success&reference=${reference}`,
       metadata: {
         user_id: user.id,
         type: "wallet_deposit",

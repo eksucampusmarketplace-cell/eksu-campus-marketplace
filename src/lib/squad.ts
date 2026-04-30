@@ -28,6 +28,7 @@ export async function initiateSquadPayment(params: {
       customer_name: params.customer_name,
       callback_url: params.callback_url,
       metadata: params.metadata,
+      payment_channels: ["bank"],
     }),
   });
 
