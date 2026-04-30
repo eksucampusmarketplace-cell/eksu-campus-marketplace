@@ -558,3 +558,58 @@ create policy "Buyers can create orders"
 
 create policy "Sellers can update order status"
   on public.orders for update using (auth.uid() = seller_id or auth.uid() = buyer_id);
+
+-- ============================================
+-- PROMOTED LISTINGS (columns on products)
+-- ============================================
+alter table public.products add column if not exists is_promoted boolean default false;
+alter table public.products add column if not exists promoted_until timestamptz;
+
+-- ============================================
+-- USER BLOCKS
+-- ============================================
+create table if not exists public.user_blocks (
+  id uuid default uuid_generate_v4() primary key,
+  blocker_id uuid references public.profiles(id) on delete cascade not null,
+  blocked_id uuid references public.profiles(id) on delete cascade not null,
+  reason text,
+  created_at timestamptz default now(),
+  unique(blocker_id, blocked_id)
+);
+
+alter table public.user_blocks enable row level security;
+
+create policy "Users can view own blocks"
+  on public.user_blocks for select using (auth.uid() = blocker_id);
+
+create policy "Users can block others"
+  on public.user_blocks for insert with check (auth.uid() = blocker_id);
+
+create policy "Users can unblock"
+  on public.user_blocks for delete using (auth.uid() = blocker_id);
+
+-- ============================================
+-- PUSH NOTIFICATION SUBSCRIPTIONS
+-- ============================================
+create table if not exists public.push_subscriptions (
+  id uuid default uuid_generate_v4() primary key,
+  user_id uuid references public.profiles(id) on delete cascade not null,
+  endpoint text not null,
+  p256dh text,
+  auth_key text,
+  created_at timestamptz default now(),
+  unique(user_id, endpoint)
+);
+
+alter table public.push_subscriptions enable row level security;
+
+create policy "Users can manage own subscriptions"
+  on public.push_subscriptions for all using (auth.uid() = user_id);
+
+-- ============================================
+-- STORAGE BUCKET FOR PRODUCT IMAGES
+-- ============================================
+-- Run in Supabase Dashboard > Storage:
+-- Create a public bucket named "product-images"
+-- Policy: Allow authenticated users to upload to their own folder
+-- Policy: Allow public read access
