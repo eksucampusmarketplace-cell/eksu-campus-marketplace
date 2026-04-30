@@ -420,3 +420,58 @@ create policy "Users can create payment transactions"
 
 create policy "Users can update own payment transactions"
   on public.payment_transactions for update using (auth.uid() = user_id);
+
+-- ============================================
+-- NOTIFICATIONS
+-- ============================================
+create table public.notifications (
+  id uuid default uuid_generate_v4() primary key,
+  user_id uuid references public.profiles(id) on delete cascade not null,
+  type text not null check (type in ('wallet_credit', 'wallet_debit', 'vtu_success', 'vtu_failed', 'transfer_received', 'transfer_sent', 'product_sold', 'message_received', 'security_alert', 'system', 'referral_bonus')),
+  title text not null,
+  message text not null,
+  is_read boolean default false,
+  metadata jsonb default '{}',
+  created_at timestamptz default now()
+);
+
+alter table public.notifications enable row level security;
+
+create policy "Users can view own notifications"
+  on public.notifications for select using (auth.uid() = user_id);
+
+create policy "Users can insert own notifications"
+  on public.notifications for insert with check (auth.uid() = user_id);
+
+create policy "Users can update own notifications"
+  on public.notifications for update using (auth.uid() = user_id);
+
+create policy "Users can delete own notifications"
+  on public.notifications for delete using (auth.uid() = user_id);
+
+-- ============================================
+-- REFERRALS
+-- ============================================
+create table public.referrals (
+  id uuid default uuid_generate_v4() primary key,
+  referrer_id uuid references public.profiles(id) on delete cascade not null,
+  referred_id uuid references public.profiles(id) on delete cascade not null,
+  referral_code text not null,
+  bonus_amount numeric default 0,
+  status text default 'pending' check (status in ('pending', 'completed', 'expired')),
+  created_at timestamptz default now(),
+  unique(referrer_id, referred_id)
+);
+
+alter table public.referrals enable row level security;
+
+create policy "Users can view own referrals"
+  on public.referrals for select
+  using (auth.uid() = referrer_id or auth.uid() = referred_id);
+
+create policy "Users can create referrals"
+  on public.referrals for insert with check (auth.uid() = referred_id);
+
+-- Add referral_code to profiles
+alter table public.profiles add column if not exists referral_code text unique;
+alter table public.profiles add column if not exists referred_by uuid references public.profiles(id);

@@ -166,3 +166,24 @@ export interface PaymentTransaction {
   created_at: string;
   updated_at: string;
 }
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  type: "wallet_credit" | "wallet_debit" | "vtu_success" | "vtu_failed" | "transfer_received" | "transfer_sent" | "product_sold" | "message_received" | "security_alert" | "system" | "referral_bonus";
+  title: string;
+  message: string;
+  is_read: boolean;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface Referral {
+  id: string;
+  referrer_id: string;
+  referred_id: string;
+  referral_code: string;
+  bonus_amount: number;
+  status: "pending" | "completed" | "expired";
+  created_at: string;
+}
