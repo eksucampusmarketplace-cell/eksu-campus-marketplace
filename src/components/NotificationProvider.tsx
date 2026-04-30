@@ -81,9 +81,78 @@ export default function NotificationProvider() {
       )
       .subscribe();
 
+    // Listen for order updates
+    const orderChannel = supabase
+      .channel("user-orders")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "orders",
+        },
+        (payload) => {
+          const order = payload.new as {
+            buyer_id: string;
+            seller_id: string;
+            status: string;
+            amount: number;
+          };
+          if (payload.eventType === "INSERT" && order.seller_id === user.id) {
+            showLocalNotification(
+              "New Order Received",
+              `You have a new order for ₦${order.amount.toLocaleString()}`,
+              "/orders"
+            );
+          } else if (
+            payload.eventType === "UPDATE" &&
+            order.buyer_id === user.id
+          ) {
+            showLocalNotification(
+              "Order Updated",
+              `Your order status changed to: ${order.status.replace(/_/g, " ")}`,
+              "/orders"
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    // Listen for wallet activity
+    const walletChannel = supabase
+      .channel("user-wallet")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "wallet_transactions",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const txn = payload.new as {
+            type: string;
+            amount: number;
+            status: string;
+            description: string | null;
+          };
+          if (txn.status === "success") {
+            const isCredit = txn.type === "deposit" || txn.type === "refund" || txn.type === "transfer_received";
+            showLocalNotification(
+              isCredit ? "Wallet Credited" : "Wallet Debited",
+              `₦${txn.amount.toLocaleString()} - ${txn.description || txn.type.replace(/_/g, " ")}`,
+              "/wallet"
+            );
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(channel);
       supabase.removeChannel(msgChannel);
+      supabase.removeChannel(orderChannel);
+      supabase.removeChannel(walletChannel);
     };
   }, [user, permissionGranted, supabase]);
 

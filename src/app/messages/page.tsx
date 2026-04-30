@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Send, Search, ArrowLeft, Loader2 } from "lucide-react";
+import { Send, Search, ArrowLeft, Loader2, Ban, MoreVertical } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -44,6 +44,9 @@ export default function MessagesPage() {
   const [sending, setSending] = useState(false);
   const [useMock, setUseMock] = useState(false);
   const [mockActiveConv, setMockActiveConv] = useState<MockConversation | null>(null);
+  const [blockedUsers, setBlockedUsers] = useState<Set<string>>(new Set());
+  const [showConvMenu, setShowConvMenu] = useState(false);
+  const [blockingUser, setBlockingUser] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
@@ -58,7 +61,17 @@ export default function MessagesPage() {
         setLoading(false);
         return;
       }
+      await fetchBlockedUsers();
       await fetchConvs();
+    };
+
+    const fetchBlockedUsers = async () => {
+      const res = await fetch("/api/users/block");
+      if (res.ok) {
+        const data = await res.json();
+        const ids = new Set<string>((data.blocks || []).map((b: { blocked_id: string }) => b.blocked_id));
+        setBlockedUsers(ids);
+      }
     };
 
     const fetchConvs = async () => {
@@ -328,7 +341,44 @@ export default function MessagesPage() {
                     alt={activeConv.other_user.full_name}
                     className="w-8 h-8 rounded-full bg-gray-200"
                   />
-                  <p className="font-medium text-sm text-gray-900">{activeConv.other_user.full_name}</p>
+                  <p className="font-medium text-sm text-gray-900 flex-1">{activeConv.other_user.full_name}</p>
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowConvMenu(!showConvMenu)}
+                      className="p-1.5 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+                    {showConvMenu && (
+                      <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 w-40">
+                        <button
+                          onClick={async () => {
+                            setBlockingUser(true);
+                            const otherId = activeConv.other_user.id;
+                            const currentlyBlocked = blockedUsers.has(otherId);
+                            if (currentlyBlocked) {
+                              await fetch(`/api/users/block?blocked_id=${otherId}`, { method: "DELETE" });
+                              setBlockedUsers((prev) => { const s = new Set(prev); s.delete(otherId); return s; });
+                            } else {
+                              await fetch("/api/users/block", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ blocked_id: otherId, reason: "Blocked from messages" }),
+                              });
+                              setBlockedUsers((prev) => new Set(prev).add(otherId));
+                            }
+                            setBlockingUser(false);
+                            setShowConvMenu(false);
+                          }}
+                          disabled={blockingUser}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+                        >
+                          <Ban className="w-4 h-4" />
+                          {blockedUsers.has(activeConv.other_user.id) ? "Unblock User" : "Block User"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">

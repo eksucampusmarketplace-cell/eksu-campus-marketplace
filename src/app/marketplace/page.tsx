@@ -14,6 +14,7 @@ import {
 import { products as mockProducts, categories } from "@/data/mock";
 import { createClient } from "@/lib/supabase/client";
 import ProductCard from "@/components/ProductCard";
+import { useAuth } from "@/contexts/AuthContext";
 
 const conditions = ["Brand New", "Like New", "Fairly Used", "Good"];
 const locations = [
@@ -37,8 +38,10 @@ export default function MarketplacePage() {
   const [activeCategory, setActiveCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [dbProducts, setDbProducts] = useState<Record<string, unknown>[]>([]);
+  const [blockedUsers, setBlockedUsers] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
+  const { user } = useAuth();
 
   // Filter state
   const [showFilters, setShowFilters] = useState(false);
@@ -63,8 +66,19 @@ export default function MarketplacePage() {
       setLoading(false);
     };
 
+    const fetchBlockedUsers = async () => {
+      if (!user) return;
+      const res = await fetch("/api/users/block");
+      if (res.ok) {
+        const data = await res.json();
+        const ids = new Set<string>((data.blocks || []).map((b: { blocked_id: string }) => b.blocked_id));
+        setBlockedUsers(ids);
+      }
+    };
+
     fetchProducts();
-  }, [supabase]);
+    fetchBlockedUsers();
+  }, [supabase, user]);
 
   const allProducts =
     dbProducts.length > 0
@@ -78,12 +92,17 @@ export default function MarketplacePage() {
       const price = (p.price as number) || 0;
       const cond = (p.condition as string) || "";
       const loc = (p.location as string) || "";
+      const sellerId = (p.seller_id as string) || "";
+
+      if (blockedUsers.has(sellerId)) return false;
 
       const matchesCategory =
         activeCategory === "All" || cat === activeCategory;
-      const matchesSearch = title
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase());
+      const desc = (p.description as string) || "";
+      const query = searchQuery.toLowerCase();
+      const matchesSearch =
+        title.toLowerCase().includes(query) ||
+        desc.toLowerCase().includes(query);
       const matchesMinPrice = !minPrice || price >= parseFloat(minPrice);
       const matchesMaxPrice = !maxPrice || price <= parseFloat(maxPrice);
       const matchesCondition = !selectedCondition || cond === selectedCondition;

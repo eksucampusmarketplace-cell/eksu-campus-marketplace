@@ -12,3 +12,15 @@ services:
         value: "10000"
       - key: HOSTNAME
         value: "0.0.0.0"
+  - type: cron
+    name: eksu-keep-alive
+    runtime: node
+    schedule: "*/14 * * * *"
+    buildCommand: echo "no build needed"
+    startCommand: curl -s "$RENDER_EXTERNAL_URL/api/cron/keep-alive" || true
+    envVars:
+      - key: RENDER_EXTERNAL_URL
+        fromService:
+          name: eksu-campus-marketplace
+          type: web
+          property: host

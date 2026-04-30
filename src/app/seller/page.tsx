@@ -11,6 +11,8 @@ import {
   ShoppingBag,
   TrendingUp,
   Plus,
+  Sparkles,
+  Clock,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
@@ -36,8 +38,23 @@ interface DashboardStats {
   walletBalance: number;
 }
 
+interface SellerProduct {
+  id: string;
+  title: string;
+  price: number;
+  images: string[];
+  is_active: boolean;
+  is_sold: boolean;
+  is_promoted: boolean;
+  promoted_until: string | null;
+  created_at: string;
+}
+
 export default function SellerDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [listings, setListings] = useState<SellerProduct[]>([]);
+  const [promoting, setPromoting] = useState<string | null>(null);
+  const [promoteMsg, setPromoteMsg] = useState("");
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const supabase = createClient();
@@ -45,10 +62,10 @@ export default function SellerDashboard() {
   const fetchStats = useCallback(async () => {
     if (!user) return;
 
-    const [listingsRes, ordersRes, reviewsRes, walletRes] = await Promise.all([
+    const [listingsRes, ordersRes, reviewsRes, walletRes, productsRes] = await Promise.all([
       supabase
-        .from("listings")
-        .select("id, status", { count: "exact" })
+        .from("products")
+        .select("id, is_active, is_sold", { count: "exact" })
         .eq("seller_id", user.id),
       supabase
         .from("orders")
@@ -63,6 +80,11 @@ export default function SellerDashboard() {
         .select("balance")
         .eq("user_id", user.id)
         .single(),
+      supabase
+        .from("products")
+        .select("id, title, price, images, is_active, is_sold, is_promoted, promoted_until, created_at")
+        .eq("seller_id", user.id)
+        .order("created_at", { ascending: false }),
     ]);
 
     const listings = listingsRes.data || [];
@@ -79,9 +101,11 @@ export default function SellerDashboard() {
         ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
         : 0;
 
+    setListings((productsRes.data || []) as SellerProduct[]);
+
     setStats({
       totalListings: listings.length,
-      activeListings: listings.filter((l) => l.status === "active").length,
+      activeListings: listings.filter((l) => l.is_active && !l.is_sold).length,
       totalOrders: orders.length,
       pendingOrders: orders.filter((o) => o.status === "pending").length,
       completedOrders: completedOrders.length,
@@ -229,6 +253,96 @@ export default function SellerDashboard() {
           );
         })}
       </div>
+
+      {/* My Listings with Promote */}
+      <h3 className="font-semibold text-gray-900 mb-3">My Listings</h3>
+      {promoteMsg && (
+        <div className={`mb-3 p-3 rounded-lg text-sm ${
+          promoteMsg.includes("Error") || promoteMsg.includes("Insufficient")
+            ? "bg-red-50 text-red-700 border border-red-200"
+            : "bg-green-50 text-green-700 border border-green-200"
+        }`}>
+          {promoteMsg}
+        </div>
+      )}
+      {listings.length > 0 ? (
+        <div className="space-y-3 mb-8">
+          {listings.map((item) => {
+            const image = item.images?.[0] || "https://via.placeholder.com/100";
+            const isCurrentlyPromoted = item.is_promoted && item.promoted_until && new Date(item.promoted_until) > new Date();
+            return (
+              <div key={item.id} className={`bg-white rounded-xl border p-4 flex items-center gap-4 ${isCurrentlyPromoted ? "border-amber-300 ring-1 ring-amber-200" : "border-gray-200"}`}>
+                <img src={image} alt={item.title} className="w-16 h-16 rounded-lg object-cover bg-gray-100" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <Link href={`/marketplace/${item.id}`} className="font-medium text-gray-900 text-sm truncate hover:text-green-600">
+                      {item.title}
+                    </Link>
+                    {isCurrentlyPromoted && (
+                      <span className="flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 text-xs rounded-full whitespace-nowrap">
+                        <Sparkles className="w-3 h-3" />
+                        Featured
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-green-700 font-bold text-sm">₦{item.price.toLocaleString()}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${item.is_sold ? "bg-gray-100 text-gray-500" : item.is_active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                      {item.is_sold ? "Sold" : item.is_active ? "Active" : "Inactive"}
+                    </span>
+                    {isCurrentlyPromoted && item.promoted_until && (
+                      <span className="text-xs text-gray-400 flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        Until {new Date(item.promoted_until).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {!item.is_sold && item.is_active && !isCurrentlyPromoted && (
+                  <button
+                    onClick={async () => {
+                      setPromoting(item.id);
+                      setPromoteMsg("");
+                      try {
+                        const res = await fetch("/api/listings/promote", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ product_id: item.id }),
+                        });
+                        const data = await res.json();
+                        if (!res.ok) {
+                          setPromoteMsg(data.error || "Error promoting listing");
+                        } else {
+                          setPromoteMsg(`Listing promoted for 7 days! ₦${data.cost} deducted.`);
+                          fetchStats();
+                        }
+                      } catch {
+                        setPromoteMsg("Error promoting listing");
+                      }
+                      setPromoting(null);
+                    }}
+                    disabled={promoting === item.id}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-amber-500 text-white text-xs font-medium rounded-lg hover:bg-amber-600 disabled:opacity-50 transition-colors whitespace-nowrap"
+                  >
+                    {promoting === item.id ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-3 h-3" />
+                    )}
+                    Promote ₦500
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="text-center py-8 bg-white rounded-xl border border-gray-200 mb-8">
+          <ShoppingBag className="w-12 h-12 text-gray-200 mx-auto" />
+          <p className="text-gray-500 mt-2">No listings yet</p>
+          <Link href="/marketplace/create" className="text-green-600 font-medium text-sm hover:text-green-700 mt-1 inline-block">Create your first listing</Link>
+        </div>
+      )}
 
       {/* Quick Actions */}
       <h3 className="font-semibold text-gray-900 mb-3">Quick Actions</h3>
