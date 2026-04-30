@@ -28,7 +28,8 @@ function LoginForm() {
   const [error, setError] = useState("");
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") || "/";
+  const rawRedirect = searchParams.get("redirect") || "/";
+  const redirect = rawRedirect.startsWith("/") && !rawRedirect.startsWith("//") ? rawRedirect : "/";
   const supabase = createClient();
 
   const handleEmailLogin = async (e: React.FormEvent) => {
@@ -55,7 +56,7 @@ function LoginForm() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=${redirect}`,
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirect)}`,
       },
     });
 
