@@ -187,3 +187,20 @@ export interface Referral {
   status: "pending" | "completed" | "expired";
   created_at: string;
 }
+
+export interface SavedItem {
+  id: string;
+  user_id: string;
+  listing_id: string;
+  created_at: string;
+}
+
+export interface Review {
+  id: string;
+  reviewer_id: string;
+  seller_id: string;
+  listing_id: string | null;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+}
