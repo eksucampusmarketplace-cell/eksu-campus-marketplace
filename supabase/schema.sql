@@ -475,3 +475,53 @@ create policy "Users can create referrals"
 -- Add referral_code to profiles
 alter table public.profiles add column if not exists referral_code text unique;
 alter table public.profiles add column if not exists referred_by uuid references public.profiles(id);
+
+-- ============================================
+-- SAVED ITEMS / WISHLIST
+-- ============================================
+create table public.saved_items (
+  id uuid default uuid_generate_v4() primary key,
+  user_id uuid references public.profiles(id) on delete cascade not null,
+  listing_id uuid references public.listings(id) on delete cascade not null,
+  created_at timestamptz default now(),
+  unique(user_id, listing_id)
+);
+
+alter table public.saved_items enable row level security;
+
+create policy "Users can view own saved items"
+  on public.saved_items for select using (auth.uid() = user_id);
+
+create policy "Users can save items"
+  on public.saved_items for insert with check (auth.uid() = user_id);
+
+create policy "Users can unsave items"
+  on public.saved_items for delete using (auth.uid() = user_id);
+
+-- ============================================
+-- PRODUCT REVIEWS / RATINGS
+-- ============================================
+create table public.reviews (
+  id uuid default uuid_generate_v4() primary key,
+  reviewer_id uuid references public.profiles(id) on delete cascade not null,
+  seller_id uuid references public.profiles(id) on delete cascade not null,
+  listing_id uuid references public.listings(id) on delete set null,
+  rating integer not null check (rating >= 1 and rating <= 5),
+  comment text,
+  created_at timestamptz default now(),
+  unique(reviewer_id, listing_id)
+);
+
+alter table public.reviews enable row level security;
+
+create policy "Anyone can view reviews"
+  on public.reviews for select using (true);
+
+create policy "Users can create reviews"
+  on public.reviews for insert with check (auth.uid() = reviewer_id);
+
+create policy "Users can update own reviews"
+  on public.reviews for update using (auth.uid() = reviewer_id);
+
+create policy "Users can delete own reviews"
+  on public.reviews for delete using (auth.uid() = reviewer_id);
