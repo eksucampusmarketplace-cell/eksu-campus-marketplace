@@ -1,16 +1,40 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, Search, SlidersHorizontal } from "lucide-react";
-import { products, categories } from "@/data/mock";
+import { Plus, Search, SlidersHorizontal, Loader2 } from "lucide-react";
+import { products as mockProducts, categories } from "@/data/mock";
+import { createClient } from "@/lib/supabase/client";
 import ProductCard from "@/components/ProductCard";
 
 export default function MarketplacePage() {
   const [activeCategory, setActiveCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
+  const [dbProducts, setDbProducts] = useState<typeof mockProducts>([]);
+  const [loading, setLoading] = useState(true);
+  const supabase = createClient();
 
-  const filtered = products.filter((p) => {
+  useEffect(() => {
+    const fetchProducts = async () => {
+      const { data } = await supabase
+        .from("products")
+        .select("*, seller:profiles(*)")
+        .eq("is_active", true)
+        .eq("is_sold", false)
+        .order("created_at", { ascending: false });
+
+      if (data && data.length > 0) {
+        setDbProducts(data);
+      }
+      setLoading(false);
+    };
+
+    fetchProducts();
+  }, [supabase]);
+
+  const allProducts = dbProducts.length > 0 ? dbProducts : mockProducts;
+
+  const filtered = allProducts.filter((p) => {
     const matchesCategory =
       activeCategory === "All" || p.category === activeCategory;
     const matchesSearch = p.title
@@ -37,7 +61,6 @@ export default function MarketplacePage() {
         </Link>
       </div>
 
-      {/* Search and filters */}
       <div className="flex gap-3 mb-6">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -55,7 +78,6 @@ export default function MarketplacePage() {
         </button>
       </div>
 
-      {/* Categories */}
       <div className="flex gap-2 overflow-x-auto pb-3 mb-6 scrollbar-hide">
         {categories.map((category) => (
           <button
@@ -72,8 +94,11 @@ export default function MarketplacePage() {
         ))}
       </div>
 
-      {/* Products grid */}
-      {filtered.length > 0 ? (
+      {loading ? (
+        <div className="flex justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-green-600" />
+        </div>
+      ) : filtered.length > 0 ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {filtered.map((product) => (
             <ProductCard key={product.id} product={product} />

@@ -1,8 +1,24 @@
 import Link from "next/link";
 import { MapPin } from "lucide-react";
-import type { Product } from "@/data/mock";
 
-export default function ProductCard({ product }: { product: Product }) {
+interface ProductCardProps {
+  product: {
+    id: string;
+    title: string;
+    price: number;
+    image?: string;
+    images?: string[];
+    location?: string | null;
+    createdAt?: string;
+    created_at?: string;
+  };
+}
+
+export default function ProductCard({ product }: ProductCardProps) {
+  const image = product.image || (product.images && product.images[0]) || "https://via.placeholder.com/400";
+  const location = product.location || "EKSU Campus";
+  const timeAgo = product.createdAt || (product.created_at ? formatTimeAgo(product.created_at) : "");
+
   return (
     <Link
       href={`/marketplace/${product.id}`}
@@ -10,7 +26,7 @@ export default function ProductCard({ product }: { product: Product }) {
     >
       <div className="aspect-square overflow-hidden bg-gray-100">
         <img
-          src={product.image}
+          src={image}
           alt={product.title}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
         />
@@ -24,11 +40,28 @@ export default function ProductCard({ product }: { product: Product }) {
         </h3>
         <div className="flex items-center gap-1 mt-2 text-xs text-gray-500">
           <MapPin className="w-3 h-3" />
-          <span>{product.location}</span>
-          <span className="mx-1">·</span>
-          <span>{product.createdAt}</span>
+          <span>{location}</span>
+          {timeAgo && (
+            <>
+              <span className="mx-1">·</span>
+              <span>{timeAgo}</span>
+            </>
+          )}
         </div>
       </div>
     </Link>
   );
+}
+
+function formatTimeAgo(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return date.toLocaleDateString();
 }
