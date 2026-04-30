@@ -203,14 +203,8 @@ export default function SellerDashboard() {
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
         {statCards.map((card) => {
           const Icon = card.icon;
-          const Wrapper = card.link ? Link : "div";
-          const wrapperProps = card.link ? { href: card.link } : {};
-          return (
-            <Wrapper
-              key={card.label}
-              {...wrapperProps}
-              className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow"
-            >
+          const content = (
+            <>
               <div className="flex items-center gap-2 mb-2">
                 <div
                   className={`w-8 h-8 rounded-lg flex items-center justify-center ${card.color}`}
@@ -220,7 +214,18 @@ export default function SellerDashboard() {
               </div>
               <p className="text-2xl font-bold text-gray-900">{card.value}</p>
               <p className="text-xs text-gray-500 mt-0.5">{card.label}</p>
-            </Wrapper>
+            </>
+          );
+          const className =
+            "bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow";
+          return card.link ? (
+            <Link key={card.label} href={card.link} className={className}>
+              {content}
+            </Link>
+          ) : (
+            <div key={card.label} className={className}>
+              {content}
+            </div>
           );
         })}
       </div>
