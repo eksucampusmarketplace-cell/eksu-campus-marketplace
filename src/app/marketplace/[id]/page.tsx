@@ -113,6 +113,8 @@ export default function ProductDetailPage() {
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [blockingUser, setBlockingUser] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
 
   const fetchProduct = useCallback(async () => {
     const { data, error } = await supabase
@@ -169,6 +171,44 @@ export default function ProductDetailPage() {
   useEffect(() => {
     if (product) fetchReviews();
   }, [product, fetchReviews]);
+
+  useEffect(() => {
+    if (!user || !product) return;
+    const sellerId = (product as Record<string, unknown>).seller_id as string;
+    if (!sellerId || sellerId === user.id) return;
+
+    const checkBlocked = async () => {
+      const res = await fetch("/api/users/block");
+      if (res.ok) {
+        const data = await res.json();
+        const blocked = (data.blocks || []).some(
+          (b: { blocked_id: string }) => b.blocked_id === sellerId
+        );
+        setIsBlocked(blocked);
+      }
+    };
+    checkBlocked();
+  }, [user, product]);
+
+  const handleBlockUser = async () => {
+    if (!user || !product) return;
+    const sellerId = (product as Record<string, unknown>).seller_id as string;
+    if (!sellerId) return;
+
+    setBlockingUser(true);
+    if (isBlocked) {
+      await fetch(`/api/users/block?blocked_id=${sellerId}`, { method: "DELETE" });
+      setIsBlocked(false);
+    } else {
+      await fetch("/api/users/block", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ blocked_id: sellerId, reason: "Blocked from product page" }),
+      });
+      setIsBlocked(true);
+    }
+    setBlockingUser(false);
+  };
 
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -388,6 +428,20 @@ export default function ProductDetailPage() {
               >
                 <Flag className="w-5 h-5" />
               </button>
+              {user && sellerId && user.id !== sellerId && (
+                <button
+                  onClick={handleBlockUser}
+                  disabled={blockingUser}
+                  className={`p-2 rounded-full transition-colors ${
+                    isBlocked
+                      ? "text-red-500 bg-red-50 hover:bg-red-100"
+                      : "text-gray-400 hover:text-red-500 hover:bg-red-50"
+                  }`}
+                  title={isBlocked ? "Unblock this seller" : "Block this seller"}
+                >
+                  <Ban className="w-5 h-5" />
+                </button>
+              )}
             </div>
           </div>
 
