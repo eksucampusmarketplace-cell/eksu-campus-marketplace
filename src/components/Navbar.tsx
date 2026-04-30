@@ -16,6 +16,7 @@ import {
   Shield,
   LogOut,
   Settings,
+  Wallet,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -127,6 +128,14 @@ export default function Navbar() {
                       >
                         <User className="w-4 h-4" />
                         Profile
+                      </Link>
+                      <Link
+                        href="/wallet"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        <Wallet className="w-4 h-4" />
+                        Wallet
                       </Link>
                       <Link
                         href="/vtu"

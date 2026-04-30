@@ -130,3 +130,39 @@ export interface NewsArticle {
   updated_at: string;
   author?: Profile;
 }
+
+export interface Wallet {
+  id: string;
+  user_id: string;
+  balance: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WalletTransaction {
+  id: string;
+  user_id: string;
+  type: "deposit" | "withdrawal" | "vtu_purchase" | "transfer" | "refund";
+  amount: number;
+  balance_before: number;
+  balance_after: number;
+  status: "pending" | "success" | "failed";
+  reference: string | null;
+  description: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface PaymentTransaction {
+  id: string;
+  user_id: string;
+  amount: number;
+  currency: string;
+  status: "pending" | "success" | "failed" | "abandoned";
+  payment_reference: string | null;
+  squad_transaction_ref: string | null;
+  payment_channel: string | null;
+  gateway_response: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}

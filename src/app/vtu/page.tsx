@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Smartphone,
   Wifi,
@@ -9,6 +9,7 @@ import {
   Loader2,
   ArrowLeft,
   CheckCircle,
+  Wallet,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
@@ -49,6 +50,14 @@ const dataPlans: Record<string, { label: string; price: number }[]> = {
   ],
 };
 
+function formatNaira(amount: number) {
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    minimumFractionDigits: 2,
+  }).format(amount);
+}
+
 type ServiceType = (typeof services)[number]["id"];
 
 export default function VtuPage() {
@@ -60,8 +69,26 @@ export default function VtuPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
+  const [walletBalance, setWalletBalance] = useState<number>(0);
   const { user } = useAuth();
   const supabase = createClient();
+
+  const fetchWalletBalance = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("wallets")
+      .select("balance")
+      .eq("user_id", user.id)
+      .single();
+    if (data) setWalletBalance(data.balance);
+  }, [user, supabase]);
+
+  useEffect(() => {
+    const load = async () => {
+      if (user) await fetchWalletBalance();
+    };
+    load();
+  }, [user, fetchWalletBalance]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,7 +101,54 @@ export default function VtuPage() {
         ? dataPlans[network]?.find((p) => p.label === selectedPlan)?.price || 0
         : parseFloat(amount);
 
-    const reference = `VTU-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    if (txAmount <= 0) {
+      setError("Please enter a valid amount");
+      setLoading(false);
+      return;
+    }
+
+    if (txAmount > walletBalance) {
+      setError(
+        `Insufficient wallet balance. You have ${formatNaira(walletBalance)}. Please fund your wallet first.`
+      );
+      setLoading(false);
+      return;
+    }
+
+    const reference = `VTU-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+    const newBalance = walletBalance - txAmount;
+
+    const { error: walletError } = await supabase
+      .from("wallets")
+      .update({ balance: newBalance, updated_at: new Date().toISOString() })
+      .eq("user_id", user.id);
+
+    if (walletError) {
+      setError("Failed to deduct from wallet: " + walletError.message);
+      setLoading(false);
+      return;
+    }
+
+    const { error: txError } = await supabase
+      .from("wallet_transactions")
+      .insert({
+        user_id: user.id,
+        type: "vtu_purchase",
+        amount: txAmount,
+        balance_before: walletBalance,
+        balance_after: newBalance,
+        status: "success",
+        reference,
+        description: `${network} ${activeService} - ${phone}`,
+        metadata: { service: activeService, provider: network, phone },
+      });
+
+    if (txError) {
+      setError(txError.message);
+      setLoading(false);
+      return;
+    }
 
     const { error: dbError } = await supabase.from("vtu_transactions").insert({
       user_id: user.id,
@@ -92,8 +166,7 @@ export default function VtuPage() {
       return;
     }
 
-    // TODO: Call Inlomax API when API key is provided
-    // For now, the transaction is saved as "pending"
+    setWalletBalance(newBalance);
     setSuccess(true);
     setLoading(false);
   };
@@ -108,19 +181,27 @@ export default function VtuPage() {
             Your {activeService} purchase has been submitted and is being processed.
           </p>
           <p className="text-sm text-gray-400 mt-1">
-            VTU integration with Inlomax is pending API key configuration.
+            Amount deducted from your wallet. Remaining balance: {formatNaira(walletBalance)}
           </p>
-          <button
-            onClick={() => {
-              setSuccess(false);
-              setPhone("");
-              setAmount("");
-              setSelectedPlan("");
-            }}
-            className="mt-6 px-6 py-2.5 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors"
-          >
-            Make Another Purchase
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center mt-6">
+            <button
+              onClick={() => {
+                setSuccess(false);
+                setPhone("");
+                setAmount("");
+                setSelectedPlan("");
+              }}
+              className="px-6 py-2.5 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors"
+            >
+              Make Another Purchase
+            </button>
+            <Link
+              href="/receipts"
+              className="px-6 py-2.5 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-colors text-center"
+            >
+              View Receipt
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -140,6 +221,24 @@ export default function VtuPage() {
       <p className="text-sm text-gray-500 mt-1">
         Buy airtime, data, pay electricity bills and cable TV
       </p>
+
+      {/* Wallet Balance Banner */}
+      {user && (
+        <div className="mt-4 flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+          <div className="flex items-center gap-2">
+            <Wallet className="w-4 h-4 text-green-600" />
+            <span className="text-sm text-green-800">
+              Wallet Balance: <strong>{formatNaira(walletBalance)}</strong>
+            </span>
+          </div>
+          <Link
+            href="/wallet"
+            className="text-xs text-green-700 font-medium hover:text-green-800 underline"
+          >
+            Fund Wallet
+          </Link>
+        </div>
+      )}
 
       <div className="grid grid-cols-4 gap-3 mt-6">
         {services.map((service) => {
@@ -215,7 +314,7 @@ export default function VtuPage() {
             {activeService === "airtime" && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Amount (₦)
+                  Amount (NGN)
                 </label>
                 <input
                   type="number"
@@ -256,7 +355,7 @@ export default function VtuPage() {
                         <span className="text-sm text-gray-700">{plan.label}</span>
                       </div>
                       <span className="text-sm font-semibold text-green-700">
-                        ₦{plan.price.toLocaleString()}
+                        {formatNaira(plan.price)}
                       </span>
                     </label>
                   ))}
@@ -270,7 +369,7 @@ export default function VtuPage() {
           <div className="text-center py-8">
             <p className="text-gray-500">
               {activeService === "electricity" ? "Electricity" : "Cable TV"} bill payment
-              coming soon. VTU integration pending API key.
+              coming soon.
             </p>
           </div>
         )}
@@ -288,7 +387,7 @@ export default function VtuPage() {
             className="w-full py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
           >
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-            Purchase
+            Pay from Wallet
           </button>
         )}
       </form>

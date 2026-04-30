@@ -328,3 +328,95 @@ create policy "Published articles are viewable by everyone"
 create policy "Admins can manage articles"
   on public.news_articles for all
   using (exists (select 1 from public.profiles where id = auth.uid() and is_admin = true));
+
+-- ============================================
+-- WALLETS
+-- ============================================
+create table public.wallets (
+  id uuid default uuid_generate_v4() primary key,
+  user_id uuid references public.profiles(id) on delete cascade not null unique,
+  balance numeric not null default 0 check (balance >= 0),
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+alter table public.wallets enable row level security;
+
+create policy "Users can view own wallet"
+  on public.wallets for select using (auth.uid() = user_id);
+
+create policy "Users can insert own wallet"
+  on public.wallets for insert with check (auth.uid() = user_id);
+
+create policy "Users can update own wallet"
+  on public.wallets for update using (auth.uid() = user_id);
+
+-- Auto-create wallet on profile creation
+create or replace function public.handle_new_wallet()
+returns trigger as $$
+begin
+  insert into public.wallets (user_id, balance)
+  values (new.id, 0);
+  return new;
+end;
+$$ language plpgsql security definer;
+
+create trigger on_profile_created_wallet
+  after insert on public.profiles
+  for each row execute procedure public.handle_new_wallet();
+
+-- ============================================
+-- WALLET TRANSACTIONS (Deposits, Withdrawals, VTU debits)
+-- ============================================
+create table public.wallet_transactions (
+  id uuid default uuid_generate_v4() primary key,
+  user_id uuid references public.profiles(id) on delete cascade not null,
+  type text not null check (type in ('deposit', 'withdrawal', 'vtu_purchase', 'transfer', 'refund')),
+  amount numeric not null check (amount > 0),
+  balance_before numeric not null,
+  balance_after numeric not null,
+  status text default 'pending' check (status in ('pending', 'success', 'failed')),
+  reference text unique,
+  description text,
+  metadata jsonb default '{}',
+  created_at timestamptz default now()
+);
+
+alter table public.wallet_transactions enable row level security;
+
+create policy "Users can view own wallet transactions"
+  on public.wallet_transactions for select using (auth.uid() = user_id);
+
+create policy "Users can create wallet transactions"
+  on public.wallet_transactions for insert with check (auth.uid() = user_id);
+
+create policy "Users can update own wallet transactions"
+  on public.wallet_transactions for update using (auth.uid() = user_id);
+
+-- ============================================
+-- PAYMENT TRANSACTIONS (Squad gateway records)
+-- ============================================
+create table public.payment_transactions (
+  id uuid default uuid_generate_v4() primary key,
+  user_id uuid references public.profiles(id) on delete cascade not null,
+  amount numeric not null check (amount > 0),
+  currency text not null default 'NGN',
+  status text default 'pending' check (status in ('pending', 'success', 'failed', 'abandoned')),
+  payment_reference text unique,
+  squad_transaction_ref text,
+  payment_channel text,
+  gateway_response jsonb default '{}',
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+alter table public.payment_transactions enable row level security;
+
+create policy "Users can view own payment transactions"
+  on public.payment_transactions for select using (auth.uid() = user_id);
+
+create policy "Users can create payment transactions"
+  on public.payment_transactions for insert with check (auth.uid() = user_id);
+
+create policy "Users can update own payment transactions"
+  on public.payment_transactions for update using (auth.uid() = user_id);
