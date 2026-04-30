@@ -41,6 +41,22 @@ export async function POST(request: Request) {
     });
   }
 
+  // Insert transaction as pending before calling external API
+  const { error: insertError } = await supabase.from("vtu_transactions").insert({
+    user_id: user.id,
+    type,
+    provider,
+    phone_number,
+    amount,
+    reference,
+    status: "pending",
+    api_response: { message: "Processing via Inlomax API" },
+  });
+
+  if (insertError) {
+    return NextResponse.json({ error: insertError.message }, { status: 500 });
+  }
+
   // Inlomax API integration
   try {
     const apiResponse = await fetch(`${INLOMAX_API_URL}/${type}`, {

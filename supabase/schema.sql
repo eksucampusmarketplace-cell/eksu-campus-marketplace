@@ -34,6 +34,10 @@ create policy "Public profiles are viewable by everyone"
 create policy "Users can update own profile"
   on public.profiles for update using (auth.uid() = id);
 
+create policy "Admins can update any profile"
+  on public.profiles for update
+  using (exists (select 1 from public.profiles where id = auth.uid() and is_admin = true));
+
 create policy "Users can insert own profile"
   on public.profiles for insert with check (auth.uid() = id);
 
@@ -86,8 +90,16 @@ create policy "Authenticated users can create products"
 create policy "Users can update own products"
   on public.products for update using (auth.uid() = seller_id);
 
+create policy "Admins can update any product"
+  on public.products for update
+  using (exists (select 1 from public.profiles where id = auth.uid() and is_admin = true));
+
 create policy "Users can delete own products"
   on public.products for delete using (auth.uid() = seller_id);
+
+create policy "Admins can delete any product"
+  on public.products for delete
+  using (exists (select 1 from public.profiles where id = auth.uid() and is_admin = true));
 
 -- ============================================
 -- POSTS (Social Feed)
@@ -265,6 +277,9 @@ create policy "Users can view own transactions"
 
 create policy "Users can create transactions"
   on public.vtu_transactions for insert with check (auth.uid() = user_id);
+
+create policy "Users can update own transactions"
+  on public.vtu_transactions for update using (auth.uid() = user_id);
 
 -- ============================================
 -- SAVED ITEMS
