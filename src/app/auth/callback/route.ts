@@ -18,9 +18,9 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const origin = await getOrigin(request);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/";
+  const next = searchParams.get("next") ?? "/marketplace";
   // Validate the next parameter to prevent open redirects
-  const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/";
+  const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/marketplace";
 
   if (code) {
     const supabase = await createClient();

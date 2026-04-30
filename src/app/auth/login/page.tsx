@@ -28,8 +28,8 @@ function LoginForm() {
   const [error, setError] = useState("");
   const router = useRouter();
   const searchParams = useSearchParams();
-  const rawRedirect = searchParams.get("redirect") || "/";
-  const redirect = rawRedirect.startsWith("/") && !rawRedirect.startsWith("//") ? rawRedirect : "/";
+  const rawRedirect = searchParams.get("redirect") || "/marketplace";
+  const redirect = rawRedirect.startsWith("/") && !rawRedirect.startsWith("//") ? rawRedirect : "/marketplace";
   const supabase = createClient();
 
   const handleEmailLogin = async (e: React.FormEvent) => {

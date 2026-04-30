@@ -178,6 +178,7 @@ export default function WalletPage() {
           amount: amount * 100,
           currency_code: "NGN",
           transaction_ref: reference,
+          payment_channels: ["bank"],
         });
       }
     };
@@ -275,7 +276,7 @@ export default function WalletPage() {
             Fund Wallet
           </h3>
           <p className="text-sm text-gray-500 mt-1">
-            Powered by Squad by Habari — pay with card, bank transfer, or USSD
+            Powered by Squad by Habari — pay via bank transfer
           </p>
 
           <div className="mt-4">
