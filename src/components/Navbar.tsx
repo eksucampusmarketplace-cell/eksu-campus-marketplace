@@ -16,6 +16,8 @@ import {
   Shield,
   LogOut,
   Settings,
+  Wallet,
+  Gift,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -95,10 +97,13 @@ export default function Navbar() {
             </div>
 
             <div className="flex items-center gap-3">
-              <button className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full">
+              <Link
+                href="/notifications"
+                className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full"
+              >
                 <Bell className="w-5 h-5" />
                 <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-              </button>
+              </Link>
 
               {user ? (
                 <div className="relative" ref={userMenuRef}>
@@ -129,12 +134,28 @@ export default function Navbar() {
                         Profile
                       </Link>
                       <Link
+                        href="/wallet"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        <Wallet className="w-4 h-4" />
+                        Wallet
+                      </Link>
+                      <Link
                         href="/vtu"
                         onClick={() => setUserMenuOpen(false)}
                         className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                       >
                         <Settings className="w-4 h-4" />
                         VTU Services
+                      </Link>
+                      <Link
+                        href="/referrals"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        <Gift className="w-4 h-4" />
+                        Referrals
                       </Link>
                       {profile?.is_admin && (
                         <Link

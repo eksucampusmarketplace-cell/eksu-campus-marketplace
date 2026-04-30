@@ -130,3 +130,60 @@ export interface NewsArticle {
   updated_at: string;
   author?: Profile;
 }
+
+export interface Wallet {
+  id: string;
+  user_id: string;
+  balance: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WalletTransaction {
+  id: string;
+  user_id: string;
+  type: "deposit" | "withdrawal" | "vtu_purchase" | "transfer" | "refund";
+  amount: number;
+  balance_before: number;
+  balance_after: number;
+  status: "pending" | "success" | "failed";
+  reference: string | null;
+  description: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface PaymentTransaction {
+  id: string;
+  user_id: string;
+  amount: number;
+  currency: string;
+  status: "pending" | "success" | "failed" | "abandoned";
+  payment_reference: string | null;
+  squad_transaction_ref: string | null;
+  payment_channel: string | null;
+  gateway_response: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  type: "wallet_credit" | "wallet_debit" | "vtu_success" | "vtu_failed" | "transfer_received" | "transfer_sent" | "product_sold" | "message_received" | "security_alert" | "system" | "referral_bonus";
+  title: string;
+  message: string;
+  is_read: boolean;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface Referral {
+  id: string;
+  referrer_id: string;
+  referred_id: string;
+  referral_code: string;
+  bonus_amount: number;
+  status: "pending" | "completed" | "expired";
+  created_at: string;
+}
